@@ -158,7 +158,7 @@ func (r *Raft) requestVote(req *pb.RequestVoteRequest) (*pb.RequestVoteResponse,
 		return &pb.RequestVoteResponse{Term: r.currentTerm, VoteGranted: false}, nil
 	}
 
-	// Up-to-date:
+	// Up-to-date definition:
 	//   If the logs have last entries with different terms, then the log with the later term is more up-to-date.
 	//   If the logs end with the same term, then whichever log is longer is more up-to-date
 	if lastLogId, lastLogTerm := r.getLastLog(); lastLogTerm > req.GetLastLogTerm() || lastLogId > req.GetLastLogId() {
