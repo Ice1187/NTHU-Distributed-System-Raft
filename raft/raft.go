@@ -454,9 +454,11 @@ func (r *Raft) broadcastAppendEntries(ctx context.Context, appendEntriesResultCh
 			Term:           r.currentTerm,
 			LeaderId:       r.id,
 			LeaderCommitId: r.commitIndex,
-			PrevLogId:      prevLog.GetId(),
-			PrevLogTerm:    prevLog.GetTerm(),
 			Entries:        entries,
+		}
+		if prevLog != nil {
+			req.PrevLogId = prevLog.GetId()
+			req.PrevLogTerm = prevLog.GetTerm()
 		}
 		r.logger.Debug("send append entries", zap.Uint32("peer", peerId), zap.Any("request", req), zap.Int("entries", len(entries)))
 
