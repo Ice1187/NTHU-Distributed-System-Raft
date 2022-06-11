@@ -119,7 +119,7 @@ func (r *Raft) appendEntries(req *pb.AppendEntriesRequest) (*pb.AppendEntriesRes
 		// TODO: (B.2) - reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm
 		// Hint: use `getLog` to get log with ID equals to prevLogId
 		// Log: r.logger.Info("the given previous log from leader is missing or mismatched", zap.Uint64("prevLogId", prevLogId), zap.Uint64("prevLogTerm", prevLogTerm), zap.Uint64("logTerm", log.GetTerm()))
-		if log := r.getLog(prevLogId); log == nil || log.GetTerm() != prevLogTerm {
+		if log := r.getLog(prevLogId); log.GetTerm() != prevLogTerm {
 			r.logger.Info("the given previous log from leader is missing or mismatched", zap.Uint64("prevLogId", prevLogId), zap.Uint64("prevLogTerm", prevLogTerm), zap.Uint64("logTerm", log.GetTerm()))
 
 			return &pb.AppendEntriesResponse{
@@ -389,7 +389,7 @@ func (r *Raft) handleVoteResult(vote *voteResult, grantedVotes *int, votesNeeded
 	// TODO: (A.13) - if votes received from majority of servers: become leader
 	// Log: r.logger.Info("election won", zap.Int("grantedVote", (*grantedVotes)), zap.Uint64("term", r.currentTerm))
 	// Hint: use `toLeader` to convert to leader
-	if *grantedVotes >= votesNeeded {
+	if (*grantedVotes) >= votesNeeded {
 		r.logger.Info("election won", zap.Int("grantedVote", (*grantedVotes)), zap.Uint64("term", r.currentTerm))
 
 		r.toLeader()
@@ -460,7 +460,7 @@ func (r *Raft) broadcastAppendEntries(ctx context.Context, appendEntriesResultCh
 			req.PrevLogId = prevLog.GetId()
 			req.PrevLogTerm = prevLog.GetTerm()
 		}
-		r.logger.Debug("send append entries", zap.Uint32("peer", peerId), zap.Any("request", req), zap.Int("entries", len(entries)))
+		//r.logger.Debug("send append entries", zap.Uint32("peer", peerId), zap.Any("request", req), zap.Int("entries", len(entries)))
 
 		// TODO: (A.14) & (B.6)
 		// Hint: modify the code to send `AppendEntries` RPCs in parallel
@@ -485,17 +485,10 @@ func (r *Raft) handleAppendEntriesResult(result *appendEntriesResult) {
 	// TODO: (A.15) - if RPC request or response contains term T > currentTerm: set currentTerm = T, convert to follower
 	// Hint: use `toFollower` to convert to follower
 	// Log: r.logger.Info("receive new term on AppendEntries response, fallback to follower", zap.Uint32("peer", result.peerId))
-	resultReqTerm := result.req.GetTerm()
-	resultRespTerm := result.AppendEntriesResponse.GetTerm()
-
-	newestResultTerm := resultReqTerm
-	if resultReqTerm < resultRespTerm {
-		newestResultTerm = resultReqTerm
-	}
-	if newestResultTerm > r.currentTerm {
+	if result.GetTerm() > r.currentTerm {
 		r.logger.Info("receive new term on AppendEntries response, fallback to follower", zap.Uint32("peer", result.peerId))
 
-		r.toFollower(newestResultTerm)
+		r.toFollower(result.GetTerm())
 		return
 	}
 
@@ -533,10 +526,9 @@ func (r *Raft) handleAppendEntriesResult(result *appendEntriesResult) {
 		log_n := logs[i]
 		n := log_n.GetId()
 
-		replicas := 1
-
 		r.logger.Info("try to find new commitIndex", zap.Uint64("N", n))
 
+		replicas := 1
 		for peerId := range r.peers {
 			if r.matchIndex[peerId] >= n {
 				replicas++
